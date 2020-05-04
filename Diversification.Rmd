@@ -1,0 +1,394 @@
+---
+title: "Week_10_Diversification"
+author: "Claire C Winfrey"
+date: "5/3/2020"
+output: html_document
+---
+
+TREE MODELS 
+1) Install packages
+```{r}
+library(ape)
+library(TreeSim)
+library(geiger)
+library(diversitree)
+devtools::install_github("thej022214/hisse")
+library(hisse)
+```
+Simulate a tree with no extinction.
+```{r}
+my.tree <- TreeSim::sim.bd.taxa(n=300, numbsim=1, lambda=0.1, mu=0)[[1]]
+ape::ltt.plot(my.tree)
+```
+
+Now, the same plot, but with the number of species on a log scale.
+```{r}
+ape::ltt.plot(my.tree, log ="y")
+```
+LOOKING AT MULTIPLE TREES
+--sim.bd.taxa function takes a fixed number of taxa and simulates birth and death trees (constant process). 
+--complete option lets you decide if you want to have tree with or without extinct lineages.
+```{r}
+yule.trees <- TreeSim::sim.bd.taxa(n=300, numbsim = 10, lambda = 0.1, mu = 0, complete = FALSE)
+ape::mltt.plot(yule.trees, log= "y", legend = FALSE)
+
+```
+MAKE TREES SIMULATING BIRTH AND DEATH PROCESS (by making mu positive)
+```{r}
+bd.trees <- TreeSim::sim.bd.taxa(n=300, numbsim = 10, lambda = 1, mu =0.9, complete = FALSE)
+ape::mltt.plot(bd.trees, log= "y", legend =FALSE)
+```
+COMPARE TREES WITH ONLY BIRTH VERSUS BIRTH AND DEATH
+--Notes on code below: 1) range returns a vector containing the minimum and maximum of all the given arguments 2) Unlist turns list into a vector. 3) lapply returns a list of the same length as x (length of yule trees is 10 trees). #4) Branching times computes distance from each node to the tips of a tree.
+--So the first line of code returns two numbers, which are the branching times for the birth only and the birth-death tree, respectively.
+
+```{r}
+depth.range <- range(unlist(lapply(yule.trees,ape::branching.times)), unlist(lapply(bd.trees,ape::branching.times)))
+
+max.depth <- sum(abs(depth.range)) #ape rescales depths
+plot(x=c(0, -1*max.depth), y=c(1, ape::Ntip(yule.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both <- list(bd.trees, yule.trees)
+
+for (i in sequence(2)) {
+  tree.list <- list.of.both[[i]]
+  for (j in sequence(length(tree.list))) {
+    ape::ltt.lines(tree.list[[j]], col=colors[[i]])
+  }
+}
+legend("topleft", legend=c("Birth Death", "Yule"), fill=colors)
+```
+
+Zoom in on final part of the plot:
+``` {r}
+depth.range <- range(unlist(lapply(yule.trees,ape::branching.times)), unlist(lapply(bd.trees,ape::branching.times)))
+max.depth <- sum(abs(depth.range))
+plot(x=c(0, -5), y=c(200, ape::Ntip(yule.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both <- list(bd.trees, yule.trees)
+for (i in sequence(2)) {
+  tree.list <- list.of.both[[i]]
+  for (j in sequence(length(tree.list))) {
+    ape::ltt.lines(tree.list[[j]], col=colors[[i]])
+  }
+}
+legend("topleft", legend=c("Birth Death", "Yule"), fill=colors)
+```
+
+EXPERIMENTING WITH OTHER DIVERSIFICATION PATTERNS
+
+Q: How does playing with values of lambda and mu change the diversification patterns? 
+A: The first BD model (we'll call it BD Tree) had a speciation rate of 1 and a extinction rate of 0.9. Altering the lambda and mu in the simulations below yielded very different plots. For the Trees 1 below, I made the speciation rate much higher than the extinction rate. Because the speciation rate was so high, the simulated trees did not need much overall time to reach the 300 taxa on the tips. The simulated trees in A began at times ranging from about -20 to -65 units of time; Sim 1 had a smaller range of only -15 to around -7 units of time. Additionally, the rate of species increase is much faster on average for Sim1 trees; however, the rate of new species in BD Tree trees increases substantially once the number of species is approximately 35.
+
+Sim 1: speciation rate much higher than extinction rate
+```{r}
+my.trees1 <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda = 1, mu= 0.5, complete=FALSE)
+
+#Plotting the two side by side: 
+
+depth.range1 <- range(unlist(lapply(bd.trees, ape::branching.times)), unlist(lapply(my.trees1, ape::branching.times)))
+max.depth1 <- sum(abs(depth.range1)) 
+plot(x=c(0, -1*max.depth1), y=c(1, ape::Ntip(bd.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both1 <- list(bd.trees, my.trees1)
+for (i in sequence(2)) {
+    tree.list1 <- list.of.both1[[i]]
+    for (j in sequence(length(tree.list1))) {
+        ape::ltt.lines(tree.list1[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("BD TREE", "Sim1"), fill=colors)
+
+```
+
+Q: How does playing with values of lambda and mu change the diversification patterns? 
+A: For Sim2 below, I played with altering the mu and lambda values, but kept the same 0.5 difference between lambda and mu as in Sim 1. The lambda and mu were changed from 1 and 0.5 to 0.75 and 0.25 respectively for Sim2a and to 0.51 and 0.01 for Sim2b. Interestingly, Sim2a and Sim 2b had very similar patterns, despite the fact that mu of Sim2b was nearly 0. The curves of Sim1, Sim2am and Sim2b were shaped similarly, but the number of species in Sim 1 (with a mu of 0.5) rose more slowly than did the number of species in Sim2a and 2b with smaller mus for most of its evolutonary trajectory. These results imply that it is not so much the difference between lambda and mu as it is the values of each that drive the diversification patterns.
+
+Sim 2a and Sim2b: constant difference between lambda and mu, but different values
+
+```{r}
+my.trees2a <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda = .75, mu= 0.25, complete=FALSE)
+
+#plotting Sim 1 and Sim 2a alongside one another 
+depth.range2 <- range(unlist(lapply(my.trees1, ape::branching.times)), unlist(lapply(my.trees2a, ape::branching.times)))
+max.depth2 <- sum(abs(depth.range2)) 
+plot(x=c(0, -1*max.depth2), y=c(1, ape::Ntip(my.trees1[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both2 <- list(my.trees1, my.trees2)
+for (i in sequence(2)) {
+    tree.list2 <- list.of.both2[[i]]
+    for (j in sequence(length(tree.list2))) {
+        ape::ltt.lines(tree.list2[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("Sim1", "Sim2"), fill=colors) 
+
+#####Sim2b trying out a small mu
+#Plotting Sim1 and Sim2b together.
+
+my.trees2b <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda = .51, mu= 0.01, complete=FALSE)
+depth.range2b <- range(unlist(lapply(my.trees1, ape::branching.times)), unlist(lapply(my.trees2b, ape::branching.times)))
+max.depth2b <- sum(abs(depth.range2b)) 
+plot(x=c(0, -1*max.depth2b), y=c(1, ape::Ntip(my.trees1[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both2b <- list(my.trees1, my.trees2b)
+for (i in sequence(2)) {
+    tree.list2b <- list.of.both2b[[i]]
+    for (j in sequence(length(tree.list2b))) {
+        ape::ltt.lines(tree.list2b[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("Sim1", "Sim2b"), fill=colors)
+```
+
+Tree 3 (Sim 3) Sum of lambda and mu is same, but different values. 
+
+For this simulation, I kept the sum of lambda and mu equal to 0.25, as in my first simulated tree. Here, I opted to keep lamdba and mu close in value, as they were in the original BD trees that were simulated using the tutorial code. The BD Trees had lambda =1 and mu =0.9, and these trees have a lambda of 0.7 and a mu of 0.55. The pattern of the two simulations was overall very similar, although most of the trees simulated in BD tree started deeper in evolutionary time, indicating that with such a high mu, these simualations needed more overall time to reach the 300 taxa at time 0.
+
+```{r}
+my.trees3 <- TreeSim::sim.bd.taxa(n=300, numbsim=10, lambda = 0.7, mu= 0.55, complete=FALSE)
+
+depth.range3 <- range(unlist(lapply(bd.trees, ape::branching.times)), unlist(lapply(my.trees3, ape::branching.times)))
+max.depth3 <- sum(abs(depth.range3)) 
+plot(x=c(0, -1*max.depth3), y=c(1, ape::Ntip(bd.trees[[1]])), log="y", type="n", bty="n", xlab="Time", ylab="N")
+colors=c(rgb(1,0,0,0.5), rgb(0, 0, 0, 0.5))
+list.of.both3 <- list(bd.trees, my.trees3)
+for (i in sequence(2)) {
+    tree.list3 <- list.of.both3[[i]]
+    for (j in sequence(length(tree.list3))) {
+        ape::ltt.lines(tree.list3[[j]], col=colors[[i]])
+    }
+}
+legend("topleft", legend=c("BD Tree", "Sim 3"), fill=colors)
+
+```
+
+TREE PLUS TRAIT MODELS 
+
+Remember: tree and characters together are a result of the model. So, say someone wanted to test a null model that a trait had no effect on diversification, it's not wise to simulate trait evo on empirical tree. This is because "even though the trait data were evolved under a model with no differential diversification, there’s no guarantee that the empirical tree was (there are certainly traits that could have affected rates, rates can change through time at mass extinctions, etc.)".
+
+1. Simulate a tree and characters to use:
+```{r}
+library(diversitree)
+speciation.rates <- c(0.1, 0.1, 0.1, 0.2) #0A, 1A, 0B, 1B
+extinction.rates <- rep(0.03, 4)
+transition.rates <- c(0.01,0.01,0, 0.01, 0, 0.01, 0.01,0,0.01, 0,0.01,0.01)
+pars <- c(speciation.rates, extinction.rates, transition.rates)
+phy <- tree.musse(pars, max.taxa=50, x0=1, include.extinct=FALSE)
+sim.dat.true <- data.frame(names(phy$tip.state), phy$tip.state)
+sim.dat <- sim.dat.true
+# Now to hide the "hidden" state
+sim.dat[sim.dat[,2]==3,2] = 1
+sim.dat[sim.dat[,2]==4,2] = 2
+# and convert states 1,2 to 0,1
+sim.dat[,2] = sim.dat[,2] - 1
+
+plot(phy)
+
+knitr::kable(cbind(sim.dat, true.char=sim.dat.true$phy.tip.state))
+```
+
+Net turnover = Tau[i] = lambda[i] + mu[i]
+Extinction fraction = epsilon[i] = mu[i] / lambda[i]
+--By re-parameterizing these, we ameliorate problems associated with over-fitting when lambda[i] and mu[i] are highly correlated. 
+--Number of free vectors in model for net turnover and extinction fraction are specified as index vectors provided to function call.
+-----Each of these vectors contains 4 entries that correspond to rates associated with observed states (0 or 1) and hidden states (A or B). Order is 0A, 1A, 0B, 1B.
+
+
+Example 1:
+Model is set up this way so that it is easy to generate a large set of nested models to test.
+turnover.anc has a single free parameter for both 0A and 1A state combos; extinction fraction has one free parameter.
+```{r}
+turnover.anc = c(1,1,0,0)
+eps.anc = c(1,1,0,0)
+```
+
+Separate turnover rates for states 0A and 1A:
+```{r}
+turnover.anc = c(1,2,0,0)
+```
+
+A full HISSE model, where there are 4 separate turnover rates of 1=0A, 2=1A, 3=0B, 4=1B. 
+Value of zero in eps.anc corresponds to no extinction (i.e. Yule)
+```{r}
+turnover.anc = c(1,2,3,4)
+eps.anc = c(0,0,0,0)
+```
+
+SETTING UP TRANSITION RATE MATRIX:
+
+Transition rate matrix is set up separate from diversification rate parameter, to reinforce the idea that SSE models are NOT trait evo models, but are rather joint models for tree and evo of a trait.
+
+1. Generate index matrix describing free parameters in transition model:
+```{r}
+trans.rates = TransMatMaker(hidden.states=TRUE)
+trans.rates
+```
+
+Removing dual transitions where both ideen triat and observed trait change (e.g. q0A <-> q1B)
+```{r}
+trans.rates.nodual = ParDrop(trans.rates, c(3,5,8,10))
+trans.rates.nodual
+
+```
+
+Running a model assuming that all transitions are equal to one another:
+```{r}
+trans.rates.nodual.equal16 = ParEqual(trans.rates.nodual, c(1,6))
+trans.rates.nodual.equal16
+
+trans.rates.nodual.allequal = ParEqual(trans.rates.nodual, c(1,2,1,3,1,4,1,5,1,6,1,7,1,8))
+trans.rates.nodual.allequal
+```
+Another way of making all rates equal:
+```{r}
+trans.rates.nodual.allequal = trans.rates.nodual
+trans.rates.nodual.allequal[!is.na(trans.rates.nodual.allequal) & !trans.rates.nodual.allequal == 0] = 1
+trans.rates.nodual.allequal
+```
+Setting up a matrix to run BISSE model in HISSE (use hidden.state=FALSE)
+```{r}
+trans.rates.bisse = TransMatMaker(hidden.states=FALSE)
+trans.rates.bisse
+```
+To run HISSE model:
+```{r}
+pp = hisse(phy, sim.dat, f=c(1,1), hidden.states=TRUE, turnover.anc=turnover.anc,
+           eps.anc=eps.anc, trans.rate=trans.rates.nodual.allequal)
+```
+
+A COMMON MISTAKE
+If you want to test a model where the hidden state is associated with only one observed state, you have to remove transitions to and from 0B manually, as below.
+
+```{r}
+turnover.anc = c(1,2,0,3)
+eps.anc = c(1,2,0,3)
+
+trans.rates <- TransMatMaker(hidden.states=TRUE)
+trans.rates.nodual.no0B <- ParDrop(trans.rates, c(2,3,5,7,8,9,10,12))
+trans.rates.nodual.no0B
+```
+
+CHANGING THE OUTPUT
+Use the output.type= argument in call hisse() to change which parameters are printed to the screen (options are turnover, net.div, and raw, which outputs reults as estimates of speciation and extinction).
+
+To output net diversification:
+```{r}
+pp = hisse(phy, sim.dat, f=c(1,1), hidden.states=TRUE, turnover.anc=turnover.anc,
+           eps.anc=eps.anc, trans.rate=trans.rates.nodual.allequal, output.type="net.div")
+Setting 
+```
+
+SETTING UP THE TWO-STATE CHARACTER-INDEPENDENT (CID-2) MODEL:
+These models add in a sort of "null" model 1) contains same degree of complexity in terms of parameters for diversification and 2) is independent of the focal character evol. This facilitate comparison among cmplex, trait-dependent models of interest.
+
+These models assume that "the evolution of a binary character is independent of the diversification process without forcing the diversification process to be constant across the entire tree"
+
+To make the CID-2 model.
+1) set up free parameters for diversification. This makes it so that 01 and 1A have one set of diversification rates, and 0B and 1B have another:
+```{r}
+turnover.anc = c(1,1,2,2)
+eps.anc = c(1,1,2,2)
+```
+
+
+2) There are three ways to set up transition rates:
+```{r}
+#1. assume usual 8 of HISSE model (or could do 12 if both hidden and observed state are allowed to change at same time):
+
+trans.rates = TransMatMaker(hidden.states=TRUE)
+trans.rates.nodual = ParDrop(trans.rates, c(3,5,8,10))
+
+#2. Assume that all rates are equal:
+trans.rates.nodual.allequal = ParEqual(trans.rates.nodual, c(1,2,1,3,1,4,1,5,1,6,1,7,1,8))
+trans.rates.nodual.allequal
+
+#3. Specifying three rates that describe: 1) transitions among the different hidden states, 2) 0 -->1, 3) 1 -->0
+
+# Now we want three specific rates:
+trans.rates.nodual.threerates <- trans.rates.nodual
+# Set all transitions from 0->1 to be governed by a single rate:
+to.change <- cbind(c(1,3), c(2,4))
+trans.rates.nodual.threerates[to.change] = 1
+# Now set all transitions from 1->0 to be governed by a single rate:
+to.change <- cbind(c(2,4), c(1,3))
+trans.rates.nodual.threerates[to.change] = 2
+# Finally, set all transitions between the hidden state to be a single rate (essentially giving
+# you an estimate of the rate by which shifts in diversification occur:
+to.change <- cbind(c(1,3,2,4), c(3,1,4,2))
+trans.rates.nodual.threerates[to.change] = 3
+trans.rates.nodual.threerates
+```
+Build HISSE model, which can then be compared against any of the models in the HISSE set (and BISSE!)
+```{r}
+pp = hisse(phy, sim.dat, f=c(1,1), hidden.states=TRUE, turnover.anc=turnover.anc,
+           eps.anc=eps.anc, trans.rate=trans.rates.nodual.allequal)
+```
+
+PLOTTING HISSE RECONSTRUCTIONS
+```{r}
+load("testrecon1.rda")
+class(pp.recon)
+pp.recon
+```
+
+Model looks good!
+
+Now plot net diversification rates. Red to blue for rate; white to black for state. For single reconstructions such as this, weights painted on each branch are the weighted average of the rate (and marginal probability is used as the weights, thus uncertainity is taken into account)
+```{r}
+plot.hisse.states(pp.recon, rate.param="net.div", show.tip.label=FALSE)
+```
+
+You can also use the same color scale across all models:
+The plot. hisse.states function works by calculating weighted average of likeliest state and rate combination for every node and tip for each model in the set (using). These are then averaged across the model using the Akaike weights (which gives the relative probability of the model)
+
+```{r}
+plot.hisse.states(pp.recon, rate.param="net.div", show.tip.label=FALSE, rate.range=c(0,0.072))
+```
+
+MODEL-AVERGING:
+You can paint branches so that they take into account both state and rate uncertainity in the model.
+
+1) make sure that hisse.states contain the AIC from the model fit embedded it.
+```{r}
+pp.recon$aic
+#returned 364.8615. 
+```
+
+Use these AIC above as an argument in the MarginRecon function:
+```{r}
+pp.recon = MarginRecon(phy, sim.dat, f=c(1,1), hidden.states=TRUE, pars=pp$solution,
+                       aic=pp$aic, n.cores=2)
+```
+
+Two different hisse.state objects are below. The plots look similar to the previous one, BUT they take uncertainity AND reonstructions inot account. 
+1) based on null two-model [turnover.anc=c(1,1,2,2)],
+2) 4 free turnover states (i.e. turnover.anc=c(1,2,3,4)])
+Assume that equal transition rates and equal extinction fraction
+```{r}
+hisse.results.list = list()
+load("testrecon1.rda")
+hisse.results.list[[1]] = pp.recon
+load("testrecon2.rda")
+hisse.results.list[[2]] = pp.recon
+load("testrecon3.rda")
+hisse.results.list[[3]] = pp.recon
+# Now supply the list the plotting function
+plot.hisse.states(hisse.results.list, rate.param="net.div", show.tip.label=FALSE, rate.range=c(0,0.072))
+```
+
+
+Easier way of generating the results above:
+```{r}
+# First, suck in all the files with .Rsave line ending in your working directory:
+files = system("ls -1 | grep .rda", intern=TRUE)
+# Create an empty list object
+hisse.results.list = list()
+# Now loop through all files, adding the embedded pp.recon object in each
+for(i in sequence(length(files))){
+  load(files[i])
+  hisse.results.list[[i]] = pp.recon
+  rm(pp.recon)
+}
+```
+NOW DO IT WITH YOUR OWN DATA!
