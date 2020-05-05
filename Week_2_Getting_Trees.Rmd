@@ -1,0 +1,99 @@
+---
+title: "Getting_trees_and_data"
+author: "Claire C Winfrey"
+date: "5/4/2020"
+output: html_document
+---
+***NOTE: I had a plethora of issues when trying to use rotl beginning at chunk 3. It worked for a bit, but then I developed HTTP failure issues. I tried restating R, updating R to Arbor Day, making a new script, and updating rotl (no update was availble), and following the exact instructions in the "How to use rotl" vignette, all to no avail. 
+
+****So, I instead went to DRYAD and found a phylogeny for leafflower moths.
+
+Making a function to extract useful ott.id from Open Tree of Life and doing so for ant genus Formica.
+```{r, eval = TRUE, echo=TRUE}
+GetTreeFromOpenTree <- function(taxa) {
+  library(rotl)
+  library(ape)
+  ott.id <- tnrs_match_names(taxa)$ott_id
+  sub.tree <-tol_subtree(ott.id)
+  import.info <- list(class(sub.tree), ott.id)
+  return(import.info)
+}
+
+formica.rotl <- GetTreeFromOpenTree(taxa="Formica")
+formica.rotl 
+```
+Now get Open Tree's current best estimate of the phylogeny for the group. They call this the tree of life; we can get the subtree for just this group.
+```{r, echo = TRUE}
+formica.tree <- tol_subtree(formica.rotl[[2]])
+plot.phylo(formica.tree, type="fan", cex=0.2)
+```
+By looking at the ratio of the number of internal nodes to number of possible nodes, we can figure out how resolved a tree is! (subtracting 1 from each to account for the root node that must always exist).
+
+***I tried to debug the code in the chunk below, pasted from the course website, by running individual lines in a regular R script. Unfortunately, the code returned a lot of errors that I was unable to fix. Most telling I think is that line 42: "formica.studies.ids returns "character(0)", and the code on line 45 "formica.study1.metadata <- get_study_meta(formica.studies)" returns an error of "Error: HTTP failure: 400 <html><body><h1>invalid request</h1></body></html>". So it seems perhaps something is wrong with the website?
+
+```{r, eval=TRUE, error=TRUE}
+	print(paste("The formica tree has ", Ntip(formica.tree), " terminals and ",
+	Nnode(formica.tree), " internal nodes out of ",Ntip(formica.tree)-2,
+	" possible, which means it is ",
+	round(100*(Nnode(formica.tree)-1)/(Ntip(formica.tree)-3), 2),
+	"% resolved", sep=""))
+
+	# Open Tree can also return the original studies with the source trees.
+	formica.studies <- studies_find_studies(property="ot:focalCladeOTTTaxonName",
+	value="formica")
+	formica.studies.ids <- unlist(formica.studies$study_ids)
+
+	# Let's get info on the first study
+	formica.study1.metadata <- get_study_meta(formica.studies[[1]][[1]])
+	print(get_publication(formica.study1.metadata))
+
+	# And let's get the tree from this study
+	# Look in rotl documentation for the right function
+	# Hint: get_study_trees() is close, but you don't know the tree.id
+  formica.study1.tree1 <- get_tree_ids(formica.studies.ids[[1]])
+
+	# And plot it
+	plot.phylo(formica.study1.tree1, type="fan", cex=0.2)
+
+	#Return both trees
+	return.list <- list(formica.tree, formica.study1.tree1)
+	names(return.list) <- c("tol.tree", "study1.tree")
+	return(return.list)
+}
+```
+
+HOMEWORK-- GET YOUR OWN DATA, LOAD IT IN, AND CHECK IT OUT BY PLOTTING IT AND SUMMARIZING IT
+
+1) Errors using my own function (that worked above)
+```{r, error =TRUE}
+
+#I attempted with my own function:
+phan.id <-GetTreeFromOpenTree(taxa= "Phanaeus")
+
+```
+And errors following ROTL guide:
+```{r, error= TRUE}
+library(rotl)
+taxa <-c("Phanaeus", "Coprophanaeus", "Onthophagus", "Aphodius")
+resolved_names <- tnrs_match_names(taxa, context_name = "Animals")
+my_tree <-tol_induced_subtree(ott_ids = resolved_names$ott_id)
+```
+Because Open Tree of Life seems not to be working, I instead went to Dryad to find a phylogeny.
+
+Citation: Luo, Shi-Xiao et al. (2016), Data from: A novel, enigmatic basal leafflower moth lineage pollinating a derived leafflower host illustrates the dynamics of host shifts, partner replacement, and apparent coadaptation in intimate mutualisms, Dryad, Dataset, https://doi.org/10.5061/dryad.t9140
+
+I downloaded the phylogeny (which was made in RAxML), and then opened it in Atom to make sure that the file looked okay.
+
+Reading in Newick file:
+```{r, eval =TRUE, error = TRUE}
+library(phytools)
+leafflower_moth_tree <- read.newick(file = "/Users/clairewinfrey/Desktop/Spring_2020/Phylometh_2020/RAxML_Epicephala_result.txt")
+leafflower_moth_tree
+branching.times(leafflower_moth_tree)
+```
+
+Data looks good in text editor, is rooted, and has the taxon names that I expect!
+```{r}
+library(ape)
+plot.phylo(leafflower_moth_tree, type = "fan", cex = 0.3)
+```
